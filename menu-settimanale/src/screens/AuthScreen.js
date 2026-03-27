@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -10,8 +9,8 @@ import {
   ScrollView,
   Animated,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -19,7 +18,10 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
-import { COLORS } from '../constants/colors';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, SHADOWS } from '../constants/colors';
+import AppInput from '../components/AppInput';
+import AppButton from '../components/AppButton';
+import Divider from '../components/Divider';
 
 export default function AuthScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -28,34 +30,79 @@ export default function AuthScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  const clearForm = () => {
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setName('');
+    setErrors({});
+  };
 
   const toggleMode = () => {
-    Animated.sequence([
+    Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 150,
         useNativeDriver: true,
       }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
+      Animated.timing(slideAnim, {
+        toValue: -10,
         duration: 150,
         useNativeDriver: true,
       }),
-    ]).start();
-
-    setTimeout(() => {
+    ]).start(() => {
       setIsLogin(!isLogin);
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-      setName('');
-    }, 150);
+      clearForm();
+      slideAnim.setValue(10);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const validate = () => {
+    const newErrors = {};
+
+    if (!email.trim()) {
+      newErrors.email = 'Email obbligatoria';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Formato email non valido';
+    }
+
+    if (!password.trim()) {
+      newErrors.password = 'Password obbligatoria';
+    } else if (password.length < 6) {
+      newErrors.password = 'Minimo 6 caratteri';
+    }
+
+    if (!isLogin) {
+      if (!name.trim()) newErrors.name = 'Nome obbligatorio';
+      if (password !== confirmPassword) {
+        newErrors.confirmPassword = 'Le password non corrispondono';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const getFirebaseErrorMessage = (errorCode) => {
-    const errors = {
+    const errorMessages = {
       'auth/email-already-in-use': 'Questa email è già registrata.',
       'auth/invalid-email': 'Email non valida.',
       'auth/weak-password': 'La password deve avere almeno 6 caratteri.',
@@ -64,31 +111,17 @@ export default function AuthScreen({ navigation }) {
       'auth/invalid-credential': 'Credenziali non valide.',
       'auth/too-many-requests': 'Troppi tentativi. Riprova più tardi.',
     };
-    return errors[errorCode] || 'Si è verificato un errore. Riprova.';
+    return errorMessages[errorCode] || 'Si è verificato un errore. Riprova.';
   };
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Errore', 'Compila tutti i campi obbligatori.');
-      return;
-    }
-
-    if (!isLogin && password !== confirmPassword) {
-      Alert.alert('Errore', 'Le password non corrispondono.');
-      return;
-    }
-
-    if (!isLogin && !name.trim()) {
-      Alert.alert('Errore', 'Inserisci il tuo nome.');
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
 
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email.trim(), password);
-        navigation.replace('Home');
       } else {
         const userCredential = await createUserWithEmailAndPassword(
           auth,
@@ -98,8 +131,8 @@ export default function AuthScreen({ navigation }) {
         await updateProfile(userCredential.user, {
           displayName: name.trim(),
         });
-        navigation.replace('Home');
       }
+      navigation.replace('Home');
     } catch (error) {
       Alert.alert('Errore', getFirebaseErrorMessage(error.code));
     } finally {
@@ -109,7 +142,7 @@ export default function AuthScreen({ navigation }) {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      Alert.alert('Info', 'Inserisci la tua email per reimpostare la password.');
+      setErrors({ email: 'Inserisci la tua email prima' });
       return;
     }
 
@@ -125,227 +158,202 @@ export default function AuthScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.header}>
-          <Text style={styles.logoEmoji}>🍽️</Text>
-          <Text style={styles.appName}>Menu Settimanale</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header con logo */}
+          <View style={styles.header}>
+            <View style={styles.logoMini}>
+              <Text style={styles.logoEmoji}>🍽️</Text>
+            </View>
+            <Text style={styles.appName}>Menu Settimanale</Text>
+          </View>
 
-        <Animated.View style={[styles.formContainer, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>
-            {isLogin ? 'Bentornato!' : 'Crea Account'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {isLogin
-              ? 'Accedi per gestire i tuoi menu'
-              : 'Registrati per iniziare'}
-          </Text>
+          {/* Card del form */}
+          <Animated.View
+            style={[
+              styles.formCard,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.title}>
+              {isLogin ? 'Bentornato!' : 'Crea il tuo account'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isLogin
+                ? 'Accedi per gestire i tuoi menu'
+                : 'Registrati per iniziare a pianificare'}
+            </Text>
 
-          {!isLogin && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Nome</Text>
-              <TextInput
-                style={styles.input}
+            {!isLogin && (
+              <AppInput
+                label="Nome"
+                icon="👤"
                 placeholder="Il tuo nome"
-                placeholderTextColor={COLORS.textSecondary}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (errors.name) setErrors({ ...errors, name: null });
+                }}
                 autoCapitalize="words"
                 editable={!loading}
+                error={errors.name}
               />
-            </View>
-          )}
+            )}
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
+            <AppInput
+              label="Email"
+              icon="✉️"
               placeholder="email@esempio.com"
-              placeholderTextColor={COLORS.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errors.email) setErrors({ ...errors, email: null });
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
+              error={errors.email}
             />
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="La tua password"
-              placeholderTextColor={COLORS.textSecondary}
+            <AppInput
+              label="Password"
+              icon="🔒"
+              placeholder="Minimo 6 caratteri"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (errors.password) setErrors({ ...errors, password: null });
+              }}
               secureTextEntry
               editable={!loading}
+              error={errors.password}
             />
-          </View>
 
-          {!isLogin && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Conferma Password</Text>
-              <TextInput
-                style={styles.input}
+            {!isLogin && (
+              <AppInput
+                label="Conferma Password"
+                icon="🔒"
                 placeholder="Ripeti la password"
-                placeholderTextColor={COLORS.textSecondary}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (errors.confirmPassword)
+                    setErrors({ ...errors, confirmPassword: null });
+                }}
                 secureTextEntry
                 editable={!loading}
+                error={errors.confirmPassword}
               />
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={COLORS.textLight} />
-            ) : (
-              <Text style={styles.submitButtonText}>
-                {isLogin ? 'Accedi' : 'Registrati'}
-              </Text>
             )}
-          </TouchableOpacity>
 
-          {isLogin && (
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={handleForgotPassword}
-            >
-              <Text style={styles.forgotPasswordText}>
-                Password dimenticata?
-              </Text>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
+            <AppButton
+              title={isLogin ? 'Accedi' : 'Crea Account'}
+              onPress={handleSubmit}
+              loading={loading}
+              style={{ marginTop: SPACING.sm }}
+            />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {isLogin ? 'Non hai un account?' : 'Hai già un account?'}
-          </Text>
-          <TouchableOpacity onPress={toggleMode} disabled={loading}>
-            <Text style={styles.footerLink}>
-              {isLogin ? 'Registrati' : 'Accedi'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {isLogin && (
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={handleForgotPassword}
+              >
+                <Text style={styles.forgotPasswordText}>
+                  Password dimenticata?
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+
+          {/* Footer: toggle login/registrazione */}
+          <Divider text="oppure" />
+
+          <AppButton
+            title={isLogin ? 'Crea un nuovo account' : 'Ho già un account'}
+            onPress={toggleMode}
+            variant="outline"
+            disabled={loading}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  container: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: SPACING.xxxl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: SPACING.xxxl,
+  },
+  logoMini: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
   },
   logoEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
+    fontSize: 28,
   },
   appName: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
     color: COLORS.primary,
+    letterSpacing: -0.3,
   },
-  formContainer: {
+  formCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xxl,
+    ...SHADOWS.lg,
   },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '800',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary,
-    marginBottom: 24,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: COLORS.inputBackground,
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  submitButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    color: COLORS.textLight,
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginBottom: SPACING.xxl,
+    lineHeight: 20,
   },
   forgotPassword: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.sm,
   },
   forgotPasswordText: {
     color: COLORS.primary,
-    fontSize: 14,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-    gap: 6,
-  },
-  footerText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
-  footerLink: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
   },
 });

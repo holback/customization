@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
-import { COLORS } from '../constants/colors';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, SHADOWS } from '../constants/colors';
 
 export default function HomeScreen({ navigation }) {
   const user = auth.currentUser;
@@ -28,36 +29,49 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>
-            Ciao, {user?.displayName || 'Utente'}!
-          </Text>
-          <Text style={styles.subGreeting}>
-            Gestisci il tuo menu settimanale
-          </Text>
+        <View style={styles.headerContent}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {(user?.displayName || 'U').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.greeting}>
+              Ciao, {user?.displayName || 'Utente'}!
+            </Text>
+            <Text style={styles.subGreeting}>
+              Gestisci il tuo menu settimanale
+            </Text>
+          </View>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Esci</Text>
+          <Text style={styles.logoutIcon}>🚪</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Contenuto */}
       <View style={styles.content}>
-        <Text style={styles.emoji}>📋</Text>
-        <Text style={styles.placeholder}>
-          Il menu settimanale arriverà qui!
-        </Text>
-        <Text style={styles.placeholderSub}>
-          Prossimamente: crea e organizza i tuoi pasti della settimana
-        </Text>
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconWrap}>
+            <Text style={styles.emptyIcon}>📋</Text>
+          </View>
+          <Text style={styles.emptyTitle}>
+            Nessun menu ancora
+          </Text>
+          <Text style={styles.emptySubtitle}>
+            Prossimamente potrai creare e organizzare i tuoi pasti della settimana
+          </Text>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
@@ -65,51 +79,92 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: SPACING.xl,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  greeting: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  avatarText: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
     color: COLORS.textLight,
   },
+  headerText: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: -0.3,
+  },
   subGreeting: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   logoutButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.inputBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  logoutText: {
-    color: COLORS.textLight,
-    fontWeight: '600',
+  logoutIcon: {
+    fontSize: 20,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: SPACING.xxl,
   },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 16,
+  emptyCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xxxl,
+    alignItems: 'center',
+    width: '100%',
+    ...SHADOWS.md,
   },
-  placeholder: {
-    fontSize: 18,
-    fontWeight: '600',
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  emptyIcon: {
+    fontSize: 36,
+  },
+  emptyTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
     color: COLORS.text,
-    textAlign: 'center',
+    marginBottom: SPACING.sm,
   },
-  placeholderSub: {
-    fontSize: 14,
+  emptySubtitle: {
+    fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginTop: 8,
+    lineHeight: 20,
   },
 });
