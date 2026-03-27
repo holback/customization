@@ -11,7 +11,7 @@ import { COLORS } from '../constants/colors';
 
 const { width } = Dimensions.get('window');
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen({ navigation, initialRoute }) {
   const logoScale = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
@@ -45,11 +45,11 @@ export default function SplashScreen({ navigation }) {
     ]).start();
 
     const timer = setTimeout(() => {
-      navigation.replace('Auth');
+      navigation.replace(initialRoute || 'Auth');
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [navigation, logoScale, logoOpacity, titleOpacity, subtitleOpacity]);
+  }, [navigation, initialRoute, logoScale, logoOpacity, titleOpacity, subtitleOpacity]);
 
   return (
     <LinearGradient

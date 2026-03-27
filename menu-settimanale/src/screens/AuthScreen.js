@@ -10,15 +10,24 @@ import {
   ScrollView,
   Animated,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
+import { auth } from '../config/firebase';
 import { COLORS } from '../constants/colors';
 
-export default function AuthScreen() {
+export default function AuthScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -45,7 +54,20 @@ export default function AuthScreen() {
     }, 150);
   };
 
-  const handleSubmit = () => {
+  const getFirebaseErrorMessage = (errorCode) => {
+    const errors = {
+      'auth/email-already-in-use': 'Questa email è già registrata.',
+      'auth/invalid-email': 'Email non valida.',
+      'auth/weak-password': 'La password deve avere almeno 6 caratteri.',
+      'auth/user-not-found': 'Nessun account trovato con questa email.',
+      'auth/wrong-password': 'Password errata.',
+      'auth/invalid-credential': 'Credenziali non valide.',
+      'auth/too-many-requests': 'Troppi tentativi. Riprova più tardi.',
+    };
+    return errors[errorCode] || 'Si è verificato un errore. Riprova.';
+  };
+
+  const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Errore', 'Compila tutti i campi obbligatori.');
       return;
@@ -61,13 +83,45 @@ export default function AuthScreen() {
       return;
     }
 
-    // TODO: Implementare la logica di autenticazione
-    Alert.alert(
-      'Info',
-      isLogin
-        ? 'Login in fase di sviluppo'
-        : 'Registrazione in fase di sviluppo'
-    );
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+        navigation.replace('Home');
+      } else {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password
+        );
+        await updateProfile(userCredential.user, {
+          displayName: name.trim(),
+        });
+        navigation.replace('Home');
+      }
+    } catch (error) {
+      Alert.alert('Errore', getFirebaseErrorMessage(error.code));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Info', 'Inserisci la tua email per reimpostare la password.');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert(
+        'Email inviata',
+        'Controlla la tua casella email per reimpostare la password.'
+      );
+    } catch (error) {
+      Alert.alert('Errore', getFirebaseErrorMessage(error.code));
+    }
   };
 
   return (
@@ -104,6 +158,7 @@ export default function AuthScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                editable={!loading}
               />
             </View>
           )}
@@ -118,6 +173,7 @@ export default function AuthScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
             />
           </View>
 
@@ -130,6 +186,7 @@ export default function AuthScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              editable={!loading}
             />
           </View>
 
@@ -143,22 +200,31 @@ export default function AuthScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
+                editable={!loading}
               />
             </View>
           )}
 
           <TouchableOpacity
-            style={styles.submitButton}
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             activeOpacity={0.8}
+            disabled={loading}
           >
-            <Text style={styles.submitButtonText}>
-              {isLogin ? 'Accedi' : 'Registrati'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color={COLORS.textLight} />
+            ) : (
+              <Text style={styles.submitButtonText}>
+                {isLogin ? 'Accedi' : 'Registrati'}
+              </Text>
+            )}
           </TouchableOpacity>
 
           {isLogin && (
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={handleForgotPassword}
+            >
               <Text style={styles.forgotPasswordText}>
                 Password dimenticata?
               </Text>
@@ -170,7 +236,7 @@ export default function AuthScreen() {
           <Text style={styles.footerText}>
             {isLogin ? 'Non hai un account?' : 'Hai già un account?'}
           </Text>
-          <TouchableOpacity onPress={toggleMode}>
+          <TouchableOpacity onPress={toggleMode} disabled={loading}>
             <Text style={styles.footerLink}>
               {isLogin ? 'Registrati' : 'Accedi'}
             </Text>
@@ -249,6 +315,9 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   submitButtonText: {
     color: COLORS.textLight,
