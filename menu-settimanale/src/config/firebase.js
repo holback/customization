@@ -2,7 +2,9 @@ import { initializeApp } from 'firebase/app';
 import {
   initializeAuth,
   getReactNativePersistence,
+  browserLocalPersistence,
 } from 'firebase/auth';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // TODO: Sostituisci con le tue credenziali Firebase
@@ -18,8 +20,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+const persistence =
+  Platform.OS === 'web'
+    ? browserLocalPersistence
+    : getReactNativePersistence(AsyncStorage);
+
+export const auth = initializeAuth(app, { persistence });
 
 export default app;
